@@ -1,0 +1,338 @@
+INTRODUCTION
+------------
+
+The following is intended to provide documentation of the computer code used to
+produce data and images illustrating GC-biases in high-throughput sequencing
+data in a peer-reviewed publication. While we hope it may be helpful to other
+labs, I am not a professional programmer and therefore am not intending to
+implement any great deal of options. Furthermore, I will generally not provide
+any support for others attempting to use or modify the code presented here. That
+said, I will attempt to address any major bugs that are brought to my attention
+and below I outline the requirements so that others with sufficient knowledge of
+linux systems can use these scripts (you don't need to be a guru). As I am a
+biologist, I have put only a little effort into optimizing the CPU and RAM usage
+of the scripts and workflows presented here.
+
+
+
+REQUIREMENTS
+------------
+
+Linux: The code here was developed and tested on Ubuntu (16.04 and 18.04), but
+    it will probably work the very same on other Debian style distributions.
+    With some minor modifications it should probably easily work on RedHat style
+    distributions too. It won't run on a Mac or a Windows machine, except,
+    perhaps with extensive modifications, and I feel totally unqualified to
+    comment on the likelihood of it running on any other family of linux
+    distros.
+
+python2.7:
+    The python scripts in here were all developed in python2.7.
+    Other python2.x versions will probably work. However, python3.x definitely
+    will not work.
+
+python libraries:
+    Biopython, numpy, scipy and matplotlib are used extensively. These can
+    easily be installed with:
+        `sudo apt-get install python-biopython python-numpy python-scipy \
+         python-matplotlib'
+    They could also be installed to a local python environment using pip in the
+    case of a normal user without administrator privileges.
+
+Other programs used in this are (you may not need them all):
+    * samtools
+    * bwa (Burrows-Wheeler aligner)
+    * minimap2 (for long read alignments)
+    * ffmpeg (necessary only for the metagenomics scripts)
+    * A genome assembler: use your favourite assembler and get a fasta output
+    * A metagenome assembler: use your choice and get a fasta output
+    This isn't an endorsement of the listed programs compared to other competing
+    programs. They work fine and other tools may also work fine.
+
+System Requirements:
+    I cannot comment definitively on the system requirements for these scripts.
+    The scripts/code presented here were written for prokaryotic genome
+    analysis. Apart from the genome and metagenome assemblers, all of the
+    scripts here ran fine on a laptop from 2012, with a core i7 processor and
+    16 GB RAM. The required hard disk capacity is dependent on the project's
+    size.
+
+
+
+INSTALL
+-------
+
+* Open a terminal and change to a suitable directory.
+* Clone the repository:
+    `git clone https://github.com/padbr/gcbias.git'
+
+* There is nothing to unpack, so just change into the gcbias directory
+    `cd gcbias'
+
+* And temporarily add this to your PATH environment varialbe (needs to be done
+  every time you start a new terminal session)
+    `wd=$(echo '"'`pwd`'"'); export PATH=$wd:$PATH'
+
+* Or permanently add it to your PATH (harmless but not recommended)
+    `wd=$(echo '"'`pwd`'"'); echo export PATH=$wd:\$PATH >> ~/.bashrc'
+
+* Or copy the *.py and *.sh scripts to anywhere already in your PATH.
+
+
+
+OVERVIEW OF SCRIPTS
+-------------------
+NOTE: Most scripts have further information available in help messages and in
+comments within the scripts.
+* read_mapping_and_depth_files.sh
+    This uses bwa to map reads to a reference genome, does some cleaning up and
+    calculates the coverage depth at each position of the reference. It does not
+    support long reads. Long reads can be mapped using minimap2 or another long
+    read aligner, following the 'single mode' operation of this. It should be
+    possible for someone with a little knowledge of bash to figure out how from
+    the script.
+
+* separate_contigs_by_average_coverage.py
+    This takes as input a tab-delimited depth file and a fasta file. The tab-
+    delimited depth file has three columns: (i) Contig name as it appears in the
+    fasta file, (ii) Position on the contig (must be an integer), and (iii)
+    coverage of that position (must be an integer).
+    
+    It calculates coverage of each contig, normalized by length. A length cutoff
+    (defaulting to 10 kb) is applied and any contigs with abnormally high
+    coverage in the subset of contigs longer than the length cutoff are flaged
+    for deletion. It optionally shows a plot where contigs shorter than the
+    length cutoff are colored in gray, contigs with abnormally high coverage
+    are colored in red and contigs that will be written to output are colored in
+    green.
+    
+    The purpose of this is to remove abnormally covered contigs from an analysis
+    of coverage biases. Abnormal coverage can arise in assemblies due to the
+    occurrence of plasmids or other high-copy elements, or to unresolved repeats
+    or other factors. As this is part of a pipeline for looking at GC-bias, the
+    plot is in 3-dimensions so that it can visually be judged if GC-content
+    could be responsible for the abnormal coverage. This script requires a
+    threshold argument (e.g. -thresh = 10.0) which can be adjusted to change the
+    sensitivity of what is considered abnormally covered, where a higher
+    threshold results in less contigs being called as abberantly covered.
+    
+    IMPORTANT!!!!!!!!!!!!!!
+    As this script is for the purpose of removing abnormalities in coverage
+    arising primarily from complexities in an assembly graph, it actually
+    performs very poorly if using complete or nearly complete assemblies. The
+    reason for this is that it expects the main prokaryotic chromosome to occur
+    in several (tens to hundreds of) contigs, and that these contigs will be the
+    dominant type of contigs above the length cutoff. This will not be the case
+    if you have a complete genome sequence of one chromosome and a few plasmids
+    longer than, the cutoff. In such a case the plasmids could be called as
+    normally covered while the chromosome is called as abnormally covered.
+    Therefore, it is important to use this script carefully and the review the
+    output to make sure it is sensible. If you are working with a complete
+    genome sequence, or a very low number of contigs, you will probably manually
+    do a better job than this script in selecting inappropriate contigs in your
+    dataset.
+
+
+* gc_relative_coverage_tabulate.py
+    Takes as input a depth file (see above - use a find function if it's hard
+    to spot) and a fasta format file as input. These will optionally have been
+    filtered manually or using 'separate_contigs_by_average_coverage.py' to
+    remove plasmids, unresolved repeats or other abberantly covered contigs.
+    
+    Coverage and GC-content, rounded off to the nearest integer, are calculated
+    in sliding windows (defaulting to 500 nt wide with a step size of half of
+    the width). These are written in a tab-delimited format to STDOUT, with GC-
+    content in the first column and coverage of each window of that GC value in
+    subsequent columns. It also has some annotations, marked with a '#' at the
+    beginning of the line so that the window size and step size are recorded.
+    The annotations will also contain the overall GC content of the contigs,
+    their total length and an optional title which could be used later while
+    creating a plot of the data.
+
+
+* plot_coverage.py
+    Takes as input a tab-delimited file of the type produced by
+    'gc_relative_coverage_tabulate.py' as input and creates a plot of GC-
+    content versus relative coverage in scalar vector graphics (svg) format.
+
+
+* multitabfile_plot.py
+    It takes multiple tab-delimited files in the same format described for
+    'plot_coverage.py' and overlays them in a plot in svg format. It will also
+    fit a quadratic trendline to the overlaid data, which I have found to be a
+    good approximation for the biases in Illumina data produced using Nextera
+    XT library kits, but will probably be wholly inappropriate for various other
+    data types. This script has hard-coded values that the user may wish to
+    change, such as the GC-content to which everything is normalized. This is a
+    script where a lot of options need to be implemented to make it more
+    generally applicable. However, I currently have no intention of doing this
+    work.
+
+
+* extract_long_contigs.py
+    Takes a fasta file as input and outputs the contigs longer than a length
+    cutoff which defaults to 10,000. This is basically the metagenome equivalent
+    to 'separate_contigs_by_average_coverage.py' which is for a single genome.
+    There is no need to filter contigs based on coverage because by the very
+    nature of a metagenome, many genomes with a wide range of abundances will be
+    present in any given sample.
+
+
+* metagenome_depth_bias.py
+    This takes as input a series of tab-delimited depth files (same output
+    format as produced by `samtools depth -a') with associated fasta-format
+    sequences. Because metagenomes consist of many elements with contrasting
+    abundances, the coverage cannot be normalized to the average coverage of a
+    chosen GC-value. Instead, coverage ratios are calculated between each
+    possible combination of pairwise GC contents (rounded to the nearest whole
+    number). These are written to an output file called 'within_comparisons.tsv'
+    (which is a hard-coded name). The format of the output is four columns:
+    (i) Numerator GC-content, (ii) Denominator GC-content, (iii) coverage ratio,
+    and (iv) log transformed coverage ratio (base 10). This output can be viewed
+    in a spreadsheet application. The same format of output is also created in
+    a binary file which can be loaded into python using the pickle module.
+
+
+* rotating_GCbias_chart.py
+    This takes the binary file produced using 'metagenome_depth_bias.py' and
+    renders a 3D plot for a series of azimuth and elevation angles. These images
+    are then stitched together into a video file using 'ffmpeg'. The apparent
+    motion helps to see the plot properly with a 3D effect.
+
+
+* SSU_to_background_coverage_ratio.py
+    This is not a very flexible script. It takes a depth file (described above)
+    representing one contig only. Some hard-coded locations in that contig are
+    specified in the script. These hard-coded locations are taken as foreground
+    loci, while the rest of the contig is taken as background loci. The ratio of
+    coverage of the foreground loci to background loci (normalized by length) is
+    returned in STDOUT.
+
+
+
+USAGE
+-----
+  Single Genome Mode:
+    To begin with, you need your sequencing reads and the reference to which
+    they must be mapped. Typically you will have assembled the reads yourself
+    using an assembler (which is beyond the scope of this README). Ideally the
+    reads that you will be mapping will have undergone adapter and quality
+    trimming as necessary for your data type. The order of scripts to produce a
+    plot of normalized relative coverage versus GC-content is as follows:
+    
+    (i).   read_mapping_and_depth_files.sh
+    (ii).  separate_contigs_by_average_coverage.py *IF SUITED TO YOUR ASSEMBLY
+    (iii). some tidying up steps IF step 2 was necessary *IF step (ii) was run
+    (iv).  gc_relative_coverage_tabulate.py
+    (v).   plot_coverage.py
+    
+    A sample workflow here assumes that you have short reads (Illumina reads),
+    which have been trimmed of adapter sequences and merged where possible. This
+    means that you will have a fastq file with single (merged) reads and two
+    fastq files (R1 and R2) with the reads that could not be merged. It is also
+    assumed that you have performed all other suitable filtering steps that you
+    would like to before you map the reads. The last file that is required for
+    this sample workflow is an assembly in fasta format. The following file
+    names will be assumed - change to suit your own needs:
+      merged reads:  merged.fq
+      forward reads: R1.fq
+      reverse reads: R2.fq
+      Assembly:      ref.fa
+    
+    The process is as follows:
+  1 • read_mapping_and_depth_files.sh -f R1.fq -r R2.fq -s merged.fa -g ref.fa \
+      -t 8 # Change -t option to a number of threads suitable for your system
+    
+  2 • separate_contigs_by_average_coverage.py -d aln.904.depth -ref ref.fa \
+      -min_size 10000 -thresh 10 -norm_out ref.filt.fa -revise
+    
+  3 • samtools view -b aln.904.sort.bam `less ref.filt.fa | grep -P "^>" | \
+      sed s'/>//g' | sed s'/\([^ ]*\)\ .*/\1/' | \
+      sed ':a;N;$!ba;s/\n/ /g'` > aln.filt.bam
+    
+  4 • samtools depth –a aln.filt.bam > aln.filt.depth
+    
+  5 • gc_relative_coverage_tabulate -d aln.filt.depth -ref ref.filt.fa -title \
+      "Insert Name of Genome" > ref.filt.tab
+    
+  6 • plot_coverage.py -i ref.filt.tab -norm_pct 49 -min_vals 3 y_errs \
+      avg_gc log_scale
+    
+    In the above, point number 1 needs to be changed depending on the type of
+    data. Point number 2 is optional, depending primarily on the nature of the
+    assembly. If point 2 is omited (like if you are mapping to a single closed
+    chromosome), then points 3 and 4 do not need to be run and and in point 5,
+    the -d option changes to 'aln.904.depth' and the -ref option changes to
+    'ref.fa'.
+  ------------------------------------------------------------------------------
+  
+  Multiple Single Genome Mode:
+    If you want an overlaid plot of the GC-biases in several different genomes,
+    follow points 1 to 5 under Single Genome Mode as necessary (i.e. omiting
+    steps 2, 3, and 4 if applicable) for each genome to produce a uniquely named
+    'ref.filt.tab' file for each. For instance, these might be called:
+    'g1.filt.tab' for genome1, 'g2.filt.tab' for genome2, ...... and so on. Put
+    these *.filt.tab files in a directory of their own, because the following
+    script assumes that all *.tab files in the current directory are valid
+    inputs. Change into that directory in the command line and run:
+    
+    • multitabfile_plot.py *.tab
+    
+    Alternatively you can specify all genomes one by one if you don't want to
+    make another directory for inputs and wish to omit some of the *.tab files.
+    The resultant output will have a legend whose size depends on the number of
+    genomes overlaid. Therefore, the output is opened in a window which may need
+    to be resized to accomodate the legend. After this, the output file must be
+    saved manually if you want to keep it, and you will have the option of
+    saving in any of a number of formats, but I recommend '.svg' so that the
+    image can later be edited in a vector graphics editor and rescaled at will.
+    ----------------------------------------------------------------------------
+  
+  
+  Metagenome Mode:
+    Here the requirements are similar to the single genome mode except that the
+    reference will be a metagenome assembly. The basic steps will be:
+    (i).   read_mapping_and_depth_files.sh
+    (ii).  extract_long_contigs.py
+    (iii). some tidying up steps
+    (iv).  metagenome_depth_bias.py
+    (v).   rotating_GCbias_chart.py
+    
+    The sample workflow below is described for a metagenome dataset consisting
+    of paired Illumina reads, which are already merged where possible and
+    quality and adapter trimmed.
+    
+  1 • read_mapping_and_depth_files.sh -f R1.fq -r R2.fq -s merged.fa -g ref.fa \
+      -t 8 # Change -t option to a number of threads suitable for your system
+      
+  2 • extract_long_contigs.py -i ref.fa -o long_records/ -l 10000 -y
+  
+  3 • cd long_records/
+  
+  4 • for file in *.fa; do recid=`echo $file | sed s'/\.fa//'`; \
+      samtools view -@ 8 -b ../aln.904.sort.bam $recid > ${recid}".bam"; done
+  
+  5 • for file in *.bam; do basename=`echo $file | sed s'/\.bam//'`; \
+      depthFile=${basename}".depth"; samtools depth -a $file > ${depthFile}; \
+      done
+  
+  6 • for file in *.fa; do depthfile=`echo $file | sed s'/\.fa/\.depth/'`; \
+      outfile=`echo $file | sed s'/\.fa/\.tab/'`; \
+      title=`echo $file | sed s'/\.fa//'`; \
+      gc_relative_coverage_tabulate.py -d $depthfile -ref $file \
+      -title $title > $outfile; done
+  
+  7 • metagenome_depth_bias.py
+  
+  8 • rotating_3Dbias_chart.py -i metaGCcurve.p -p metagenome
+  
+  9 • tar -capf intermediate_files.tar.gz *.{bam,depth,fa,tab} && \
+      rm *.{bam,depth,fa,tab}
+
+
+
+TO DO
+-----
+* Insert details of the publication in the introduction
+* Test on virutal machines with e.g. 4GB RAM (or 8GB if that fails) to see if
+  the system requirements can be lowered a bit.
