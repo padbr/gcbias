@@ -18,13 +18,12 @@ of the scripts and workflows presented here.
 REQUIREMENTS
 ------------
 
-Linux: The code here was developed and tested on Ubuntu (16.04 and 18.04), but
-    it will probably work the very same on other Debian style distributions.
-    With some minor modifications it should probably easily work on RedHat style
-    distributions too. It won't run on a Mac or a Windows machine, except,
-    perhaps with extensive modifications, and I feel totally unqualified to
-    comment on the likelihood of it running on any other family of linux
-    distros.
+Linux: Debian and Redhat flavors of linux are likely to be generally compatible
+    with the code presented here, although it was specifically tested using
+    Ubuntu 18.04 and CentOS 7. It won't run using Mac or Windows except, perhaps
+    with extensive modifications. Although I am totally unqualified to comment
+    on the likelihood of it running on any other family of linux distros, I
+    guess it is likely.
 
 python2.7:
     The python scripts in here were all developed in python2.7.
@@ -32,15 +31,15 @@ python2.7:
     will not work.
 
 python libraries:
-    Biopython, numpy, scipy and matplotlib are used extensively. These can
-    easily be installed with:
-        `sudo apt-get install python-biopython python-numpy python-scipy \
-         python-matplotlib'
-    They could also be installed to a local python environment using pip in the
-    case of a normal user without administrator privileges.
+    Biopython, numpy, scipy and matplotlib are used extensively. These should 
+    generally be easily installed with the linux system's package manager. In
+    some cases, like if you are not a system administrator or if any of these
+    packages are not available in your system's package manager, they could
+    alternatively be installed to a local python environment using pip (a python
+    package manager).
 
 Other programs used in this are (you may not need them all):
-    * samtools
+    * samtools >=1.0
     * bwa (Burrows-Wheeler aligner)
     * minimap2 (for long read alignments)
     * ffmpeg (necessary only for the metagenomics scripts)
@@ -52,10 +51,12 @@ Other programs used in this are (you may not need them all):
 System Requirements:
     I cannot comment definitively on the system requirements for these scripts.
     The scripts/code presented here were written for prokaryotic genome
-    analysis. Apart from the genome and metagenome assemblers, all of the
-    scripts here ran fine on a laptop from 2012, with a core i7 processor and
-    16 GB RAM. The required hard disk capacity is dependent on the project's
-    size.
+    analysis, and thus have modest requirements. I generally ran the workflows
+    here on a laptop from 2012, with a core i7 processor and 16 GB RAM, but I
+    could comfortably run them on a test data set on a virutal machine with only
+    4 GB RAM. The required hard disk capacity is dependent on the project's
+    size. These stated requirements do not account for assembling genomes nor
+    metagenomes, as it is assumed that this will be done on a (remote) server.
 
 
 
