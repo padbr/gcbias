@@ -61,7 +61,7 @@ def tabbed_coverage_parse(tabfile, norm_pct, min_points, log_transform):
     norm_factor = np.average(covs[norm_index])
     covs = [[float(num)/norm_factor for num in cov] for cov in covs]
     if log_transform == 'yes':
-        covs = [[math.log(num) for num in cov] for cov in covs]
+        covs = [[math.log(num,10) for num in cov] for cov in covs]
     ys = [np.average(cov) for cov in covs]
     stdevs = [np.std(cov) for cov in covs]
     return(xs, ys, stdevs, weights)
